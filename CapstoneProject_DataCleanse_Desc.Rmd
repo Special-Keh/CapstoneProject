@@ -1,0 +1,129 @@
+---
+title: "Capstone Project Data Cleanse & Description"
+author: "Kerri Humphrey"
+output:
+  word_document: default
+ 
+---
+
+```{r, echo=FALSE}
+# Load Data into tables
+test  <- read.csv("C:/Users/KerriH/Desktop/Certificate Program/CKME136_Capstone Project/EMI Music Data Files/test.csv", header = TRUE, na.strings = c("NA", ""))
+
+train  <- read.csv("C:/Users/KerriH/Desktop/Certificate Program/CKME136_Capstone Project/EMI Music Data Files/train.csv", header = TRUE, na.strings = c("NA", ""))
+
+words  <- read.csv("C:/Users/KerriH/Desktop/Certificate Program/CKME136_Capstone Project/EMI Music Data Files/words.csv", header = TRUE, na.strings = c("NA", ""))
+
+users  <- read.csv("C:/Users/KerriH/Desktop/Certificate Program/CKME136_Capstone Project/EMI Music Data Files/users2.csv", header = TRUE, na.strings = c("NA", ""))
+```
+
+```{r, echo=FALSE}
+# Determine structure of tables
+str(train)
+str(users)
+str(words)
+```
+
+
+```{r, echo=FALSE}
+#CLEAN DATA 
+#Convert Artist, Track and UserID to Categorical Variables
+train$Artist <- as.factor(train$Artist)
+train$Track <- as.factor(train$Track)
+train$UserID <- as.factor(train$UserID)
+
+users$RESPID <- as.factor(users$RESPID)
+
+words$Artist <- as.factor(words$Artist)
+words$User <- as.factor(words$User)
+
+#Convert Descriptive Word variables from Numeric to Categorical 
+for (i in 6:87) {
+  words[,i] <- as.factor(words[,i])
+}
+
+# Convert number of hours listening to music to numbers
+users$LIST_BACK2[which(grepl("^[0-9]+", users$LIST_BACK))] = substr(users$LIST_BACK[which(grepl("^[0-9]+", users$LIST_BACK))], 0, 2)
+
+users$LIST_OWN2[which(grepl("^[0-9]+", users$LIST_OWN))] = substr(users$LIST_OWN[which(grepl("^[0-9]+", users$LIST_OWN))], 0, 2)
+
+users$LIST_BACK2[which(grepl("Less*", users$LIST_BACK))] = "1"
+
+users$LIST_OWN2[which(grepl("Less*", users$LIST_OWN))] = "1"
+
+users$LIST_BACK2[which(grepl("16\\+", users$LIST_BACK))] = "17"
+
+users$LIST_OWN2[which(grepl("16\\+", users$LIST_OWN))] = "17"
+
+users$LIST_BACK2[which(grepl("More*", users$LIST_BACK))] = "17"
+
+users$LIST_OWN2[which(grepl("More*", users$LIST_OWN))] = "17"
+
+users$LIST_BACK2 <- as.integer(users$LIST_BACK2)
+users$LIST_OWN2 <- as.integer(users$LIST_OWN2)
+
+#Merge two Good.Lyrics fields
+words$Good.lyrics[is.na(words$Good.lyrics)] = words$Good.Lyrics[is.na(words$Good.lyrics)]
+
+```
+
+```{r, echo=FALSE}
+#Fill in Blank Age with Average age by Gender
+mean.female = mean(users$AGE[grepl("Female", users$GENDER) & !is.na(users$AGE)])
+mean.male = mean(users$AGE[grepl("Male", users$GENDER) & !is.na(users$AGE)])
+
+users$AGE[grepl("Female", users$GENDER) & is.na(users$AGE)] = mean.female
+users$AGE[grepl("Male", users$GENDER) & is.na(users$AGE)] = mean.male
+
+```
+
+```{r, echo=FALSE}
+#Re-check table and variable structures
+str(train)
+str(users)
+str(words)
+```
+
+```{r}
+#SUMMARY OF DATA
+summary(train)
+summary(users[,9:29])
+summary(words)
+```
+
+
+```{r, echo=FALSE}
+# Descriptive Stats of the Data
+summary(users$GENDER)
+pie(summary(users$GENDER), col = c(2,4), init.angle = 90)
+
+mean(users$AGE)
+hist(users$AGE, main = "User Age", xlab = "Age", col = "dark blue")
+
+summary(users$MUSIC)
+pie(summary(users$MUSIC), main = "Importance of Music to Users", col = c(4:10), cex = 0.5)
+
+boxplot(users[,9:27], main = "Music Habit Ratings", ylab = "Rating", col = c(2:20))
+
+```
+
+```{r}
+#Merge Rating Data with User Profile Information
+train_data = merge(train, users, by.x = "UserID", by.y = "RESPID")
+```
+
+```{r}
+#Comparison of Average Ratings by Importance of Music Attitude
+s1 = aov(Rating ~ MUSIC, train_data)
+summary(s1)
+
+
+#Correlations between Artist Track Ratings and Age, Music Habit Questions & Number of Hours spent listenting to music
+cor(train_data$Rating, train_data[,c(7,13:33)], use = "pairwise.complete.obs", method = "pearson")
+
+#Correlation of Music Habit Ratings Against Artist Track Ratings
+for (i in 13:33) {
+  print(cor.test(train_data$Rating, train_data[,i], method= "pearson"))  
+}
+
+```
